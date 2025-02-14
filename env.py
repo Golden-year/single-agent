@@ -1,5 +1,5 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -25,6 +25,12 @@ class CustomEnv(gym.Env):
                 low=np.array([0, 0, 40] * 5),
                 high=np.array([1000, 1000, 300] * 5),
                 dtype=np.float32
+            ),
+            "user_task_means": spaces.Box(
+                low=1.75,  # (3+0.5)/2
+                high=3.0,  # (5+1)/2
+                shape=(441,),
+                dtype=np.float32
             )
         })
 
@@ -42,7 +48,8 @@ class CustomEnv(gym.Env):
         self.user_tasks = torch.empty((441, 2), device=self.device)
         self.user_choices = torch.full((441,), -1, dtype=torch.long, device=self.device)  # -1表示local      
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
         # 初始化无人机位置
         self.drone_positions = torch.tensor([
             [0, 0, 40],
@@ -53,13 +60,14 @@ class CustomEnv(gym.Env):
         ], dtype=torch.float32, device=self.device)
 
         # 生成用户任务（批量操作）
-        self.user_tasks[:, 0] = torch.rand(441, device=self.device) * 2 + 3  # [3,5)
-        self.user_tasks[:, 1] = torch.rand(441, device=self.device) * 0.5 + 0.5  # [0.5,1.0)
+        self.user_tasks[:, 0] = torch.tensor(self.np_random.uniform(3, 5, size=441), device=self.device)  # [3,5)
+        self.user_tasks[:, 1] = torch.tensor(self._np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)
         
         # 重置用户选择
         self.user_choices.fill_(-1)
+        user_means = torch.mean(self.user_tasks, dim=1).cpu().numpy()
         
-        return {"drone_positions": self.drone_positions.cpu().numpy().flatten()}
+        return ({"drone_positions": self.drone_positions.cpu().numpy().flatten(), "user_task_means": user_means}, {})
 
     def step(self, action):
         action = torch.tensor(action, dtype=torch.long, device=self.device)  
@@ -74,7 +82,7 @@ class CustomEnv(gym.Env):
         reward = self._calculate_reward()
         done = False
         info = {}
-        return {"drone_positions": self.drone_positions.flatten().cpu().numpy()}, reward, done, info
+        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": torch.mean(self.user_tasks, dim=1).cpu().numpy()}, reward, False, False, info)
         #ToDo 返回信息还可以更改
 
     def _calculate_reward(self):
