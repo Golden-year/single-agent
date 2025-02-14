@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium import spaces
-import matplotlib.pyplot as plt
+from gymnasium.utils import seeding
 import numpy as np
 import torch
 
@@ -10,12 +10,12 @@ class CustomEnv(gym.Env):
     def __init__(self):
         super(CustomEnv, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.steps = 0
 
         # 设置随机种子
         torch.manual_seed(42)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(42)
-        np.random.seed(42)
         self.__init__users()
 
         # 定义动作空间和状态空间
@@ -49,7 +49,9 @@ class CustomEnv(gym.Env):
         self.user_choices = torch.full((441,), -1, dtype=torch.long, device=self.device)  # -1表示local      
 
     def reset(self, seed=None, options=None):
+        self.np_random, seed = seeding.np_random(seed)
         super().reset(seed=seed)
+        self.steps = 0
         # 初始化无人机位置
         self.drone_positions = torch.tensor([
             [0, 0, 40],
@@ -61,7 +63,7 @@ class CustomEnv(gym.Env):
 
         # 生成用户任务（批量操作）
         self.user_tasks[:, 0] = torch.tensor(self.np_random.uniform(3, 5, size=441), device=self.device)  # [3,5)
-        self.user_tasks[:, 1] = torch.tensor(self._np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)
+        self.user_tasks[:, 1] = torch.tensor(self.np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)
         
         # 重置用户选择
         self.user_choices.fill_(-1)
@@ -73,16 +75,20 @@ class CustomEnv(gym.Env):
         action = torch.tensor(action, dtype=torch.long, device=self.device)  
         drone_actions = (action - 1).view(5, 3) 
 
-        self.drone_positions = torch.clamp(
-            self.drone_positions + drone_actions,
-            min=torch.tensor([0, 0, 40], device=self.device),
-            max=torch.tensor([1000, 1000, 300], device=self.device)
-        )
+        self.drone_positions = self.drone_positions + drone_actions
 
+        distance = torch.norm(self.drone_positions.unsqueeze(1) - self.drone_positions.unsqueeze(0), dim=2)
+        distance = distance + torch.eye(self.drone_positions.size(0), device=self.device) * 1000
+        out_of_bounds = ((self.drone_positions < torch.tensor([0, 0, 40], device=self.device)) |
+            (self.drone_positions > torch.tensor([1000, 1000, 300], device=self.device))).any()
+        collision = (distance < 20).any()
+        truncated = out_of_bounds or collision
+        
+        done = self.steps >= 1000
         reward = self._calculate_reward()
-        done = False
+        self.steps += 1
         info = {}
-        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": torch.mean(self.user_tasks, dim=1).cpu().numpy()}, reward, False, False, info)
+        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": torch.mean(self.user_tasks, dim=1).cpu().numpy()}, reward, done, truncated, info)
         #ToDo 返回信息还可以更改
 
     def _calculate_reward(self):
