@@ -1,14 +1,28 @@
+from stable_baselines3 import PPO
 import torch
+import gymnasium as gym
+from env import CustomEnv  # 确保你的环境文件正确导入
 
-trans_energy_all = torch.tensor([[10, 20, 30, 40, 50],
-                                 [60, 70, 80, 90, 100],
-                                 [110, 120, 130, 140, 150]])
+# 检查 CUDA 是否可用
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
 
-user_choices = torch.tensor([2, -1, 1])  # 选择索引（-1 代表不选）
-uav_mask = torch.tensor([True, False,True])  # 只选第一行
-total_trans = trans_energy_all[uav_mask].gather(1, user_choices[uav_mask].view(-1, 1)).sum()
+# 加载环境
+env = CustomEnv()  # 你的自定义环境
+obs, _ = env.reset()
 
-print(user_choices[uav_mask].view(-1, 1))  
-# 预期应该是 tensor([[2], [1]])
+# 加载训练好的模型
+model_path = "./ppo_custom_env_final.zip"  # 确保路径正确
+model = PPO.load(model_path, device=device)
 
-print(total_trans)
+# 运行测试
+for _ in range(1000):  
+    action, _states = model.predict(obs, deterministic=True)
+    obs, rewards, done, truncated, info = env.step(action)
+    env.render()
+    
+    if done or truncated:
+        obs, _ = env.reset()
+
+env.close()
+print("Model testing complete.")

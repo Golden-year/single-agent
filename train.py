@@ -37,7 +37,7 @@ def main():
     )
 
     checkpoint_callback = CheckpointCallback(
-        save_freq=1000,  # 每1000步保存一次模型
+        save_freq=10000,  # 每1000步保存一次模型
         save_path="./checkpoints/",  # 模型保存路径
         name_prefix="ppo_custom_env"
     )

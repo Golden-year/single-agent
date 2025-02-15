@@ -86,6 +86,8 @@ class CustomEnv(gym.Env):
         
         done = self.steps >= 1000
         reward = self._calculate_reward()
+        if truncated:
+            reward -= 100
         self.steps += 1
         info = {}
         return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": torch.mean(self.user_tasks, dim=1).cpu().numpy()}, reward, done, truncated, info)
