@@ -43,7 +43,7 @@ def main():
     )
 
     # 训练模型
-    model.learn(total_timesteps=int(1e7),
+    model.learn(total_timesteps=int(1024),
                 callback=[eval_callback, checkpoint_callback])
 
     # 保存模型

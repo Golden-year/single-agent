@@ -62,8 +62,8 @@ class CustomEnv(gym.Env):
         ], dtype=torch.float32, device=self.device)
 
         # 生成用户任务（批量操作）
-        self.user_tasks[:, 0] = torch.tensor(self.np_random.uniform(3, 5, size=441), device=self.device)  # [3,5)
-        self.user_tasks[:, 1] = torch.tensor(self.np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)
+        self.user_tasks[:, 0] = torch.tensor(self.np_random.uniform(3, 5, size=441), device=self.device)  # [3,5)F
+        self.user_tasks[:, 1] = torch.tensor(self.np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)D
         
         # 重置用户选择
         self.user_choices.fill_(-1)

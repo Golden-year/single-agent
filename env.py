@@ -69,7 +69,7 @@ class CustomEnv(gym.Env):
         self.user_choices.fill_(-1)
         # user_means = torch.mean(self.user_tasks, dim=1).cpu().numpy()
         
-        return ({"drone_positions": self.drone_positions.cpu().numpy().flatten(), "user_task_means": self.user_tasks[:, 1]}, {})
+        return ({"drone_positions": self.drone_positions.cpu().numpy().flatten(), "user_task_means": self.user_tasks[:, 1].cpu().numpy()}, {})
 
     def step(self, action):
         action = torch.tensor(action, dtype=torch.long, device=self.device)  
@@ -84,13 +84,13 @@ class CustomEnv(gym.Env):
         collision = (distance < 20).any()
         truncated = out_of_bounds or collision
         
-        done = self.steps >= 1000
+        done = self.steps >= 500
         reward = self._calculate_reward()
         if truncated:
-            reward -= 100
+            reward -= 1000
         self.steps += 1
         info = {}
-        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": self.user_tasks[:, 1]}, reward, done, truncated, info)
+        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": self.user_tasks[:, 1].cpu().numpy()}, reward, done, truncated, info)
         #ToDo 返回信息还可以更改
 
     def _calculate_reward(self):
