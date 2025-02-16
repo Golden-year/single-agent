@@ -2,14 +2,14 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
+from stable_baselines3.common.vec_env import VecNormalize
 from env import CustomEnv
-import numpy as np
 import os
 def main():
     # 创建环境
     num_envs = 4  # 根据硬件性能调整
     env = make_vec_env(CustomEnv, n_envs=num_envs, vec_env_cls=DummyVecEnv)
-
+    env = VecNormalize(env, norm_obs=True, norm_reward=True)
     # TensorBoard日志目录
     log_dir = "./ppo_tensorboard/"
     os.makedirs(log_dir, exist_ok=True)
@@ -31,7 +31,7 @@ def main():
         env,
         best_model_save_path="./best_model/",  # 保存最佳模型的路径
         log_path="./eval_logs/",  # 评估日志路径
-        eval_freq=500,  # 每500步评估一次
+        eval_freq=10000,  # 每500步评估一次
         deterministic=True,
         render=False
     )
@@ -52,18 +52,6 @@ def main():
     # 删除模型以测试加载
     del model
 
-    # 加载训练好的模型
-    # model = PPO.load("ppo_custom_env", device="cuda")  # 确保在 GPU 上加载
-
-    # test_env = DummyVecEnv([lambda: CustomEnv()])
-    # 测试训练好的智能体
-    # obs, _ = test_env.reset()
-    # for _ in range(1000):
-    #     action, _states = model.predict(obs, deterministic=True)
-    #     obs, rewards, terminated, truncated, info = test_env.step(action)
-    #    if terminated or truncated:
-    #         obs, _ = env.reset()
-    #     env.render()
 
 if __name__ == "__main__":
     main()

@@ -63,13 +63,13 @@ class CustomEnv(gym.Env):
 
         # 生成用户任务（批量操作）
         self.user_tasks[:, 0] = torch.tensor(self.np_random.uniform(3, 5, size=441), device=self.device)  # [3,5)
-        self.user_tasks[:, 1] = torch.tensor(self.np_random.uniform(0.5, 1.0, size=441), device=self.device)   # [0.5,1.0)
+        self.user_tasks[:, 1] = torch.tensor(self.np_random.uniform(0.8, 1.0, size=441), device=self.device)   # [0.5,1.0)D
         
         # 重置用户选择
         self.user_choices.fill_(-1)
-        user_means = torch.mean(self.user_tasks, dim=1).cpu().numpy()
+        # user_means = torch.mean(self.user_tasks, dim=1).cpu().numpy()
         
-        return ({"drone_positions": self.drone_positions.cpu().numpy().flatten(), "user_task_means": user_means}, {})
+        return ({"drone_positions": self.drone_positions.cpu().numpy().flatten(), "user_task_means": self.user_tasks[:, 1]}, {})
 
     def step(self, action):
         action = torch.tensor(action, dtype=torch.long, device=self.device)  
@@ -90,7 +90,7 @@ class CustomEnv(gym.Env):
             reward -= 100
         self.steps += 1
         info = {}
-        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": torch.mean(self.user_tasks, dim=1).cpu().numpy()}, reward, done, truncated, info)
+        return ({"drone_positions": self.drone_positions.flatten().cpu().numpy(), "user_task_means": self.user_tasks[:, 1]}, reward, done, truncated, info)
         #ToDo 返回信息还可以更改
 
     def _calculate_reward(self):
@@ -109,7 +109,7 @@ class CustomEnv(gym.Env):
 
     def _batch_calculate_trans_energy(self, path_loss_matrix):
         """批量计算传输能耗（全矩阵）"""
-        snr = 10 ** (-path_loss_matrix / 10) / 1e-11
+        snr = 10 ** (-path_loss_matrix / 10) / 1e-12
         rate = torch.log2(1 + snr)
         trans_time = self.user_tasks[:, 1].unsqueeze(1) / rate
         return 0.1 * trans_time
